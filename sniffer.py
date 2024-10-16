@@ -31,6 +31,20 @@ class PacketSniffer:
             src_ip = socket.inet_ntoa(ip[8])
             dest_ip = socket.inet_ntoa(ip[9])
             packet_length = len(raw_data)
+
+            # Extract TCP/UDP ports if the protocol is TCP (6) or UDP (17)
+            src_port = dest_port = None
+            if protocol == 6:  # TCP
+                tcp_header = raw_data[34:54]
+                tcp = struct.unpack('!HHLLBBHHH', tcp_header)
+                src_port = tcp[0]
+                dest_port = tcp[1]
+            elif protocol == 17:  # UDP
+                udp_header = raw_data[34:42]
+                udp = struct.unpack('!HHHH', udp_header)
+                src_port = udp[0]
+                dest_port = udp[1]
+
             return {
                 'eth_protocol': eth_protocol,
                 'ttl': ttl,
@@ -38,6 +52,8 @@ class PacketSniffer:
                 'src_ip': src_ip,
                 'dest_ip': dest_ip,
                 'length': packet_length,
+                'src_port': src_port,
+                'dest_port': dest_port,
                 'protocol_name': self.get_protocol_name(protocol),
             }
 
@@ -61,6 +77,8 @@ class PacketSniffer:
             print(f"TTL: {packet_info['ttl']}")
             print(f"Protocol: {packet_info['protocol_name']}")
             print(f"Source IP: {packet_info['src_ip']} -> Destination IP: {packet_info['dest_ip']}")
+            print(f"Source Port: {packet_info['src_port'] if packet_info['src_port'] else 'N/A'}")
+            print(f"Destination Port: {packet_info['dest_port'] if packet_info['dest_port'] else 'N/A'}")
             print(f"Packet Length: {packet_info['length']} bytes")
             print("------------------------------------------------------------")
 
@@ -77,6 +95,10 @@ if __name__ == "__main__":
         raise SystemExit("Error: This application requires administrator privileges.")
 
     sniffer = PacketSniffer(_args.interface)
+
+    # Announcement message
+    print("[*] Starting packet sniffer on interface: {}".format(_args.interface))
+    print("[*] Listening for packets... Press Ctrl+C to stop.")
 
     try:
         for raw_packet in sniffer.listen():
